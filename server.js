@@ -39,14 +39,8 @@ switch(command){
   case "search":
     check_arguments('Enter one or more keywords to search for',search(arg));
     break;
-  case "lookup":
-    check_arguments('Enter a screenname to lookup',lookup(arg[0]));
-    break;
   case "trends":
-    check_arguments('Enter a region, 1 is worldwide, 2 is Netherlands',trends(arg[0]));
-    break;
-  case "dump":
-    check_arguments('Enter a screenname to dump',dump(arg[0]));
+    check_arguments('Enter a region, 1 is worldwide, 2 is Roma',trends(arg[0]));
     break;
   default:
     console.log('Usage: node app.js <command> <arguments>');
@@ -70,6 +64,10 @@ Date.prototype.addHours= function(h){
   return copiedDate;
 }
 
+function addToStorage(item){
+  history.push(item);
+}
+
 function processTweet(tweet){
   var type = (tweet.retweeted_status) ? 2 : 0;
   if (!type)
@@ -79,7 +77,7 @@ function processTweet(tweet){
     lang: tweet.user.lang,
     user: tweet.user.screen_name,
     is:   type});
-  history.push(tweet.text);
+  addToStorage(tweet.text);
 }
 
 function view_message(body){
@@ -98,27 +96,6 @@ function show_error(err){
   console.log(errors.errors[0].message);
 }
 
-function dump_recursive(scr_name,nr,max){
-  if (nr >= 3200)
-    return false;
-  var latest = null;
-  var dumpedSoFar = nr;
-  T.get('statuses/user_timeline', { screen_name : scr_name, count : 200, max_id : max }, function(err, reply) {
-    if (err && err.data) {
-      show_error(err);return false;
-    };
-    dumpedSoFar += reply.length;
-    for (var i=0; i < reply.length; i++) {
-      latest = reply[i].id;
-      processTweet(reply[i]);
-    };
-    if (reply.length >= 2){
-      dump_recursive(scr_name,dumpedSoFar,latest);
-    } else {
-      console.log("Number of tweets dumped: " + dumpedSoFar);
-    }
-  });
-}
 
 function search(args){
   T.get('search/tweets', { q: args.join(' OR '), count: amount }, function(err, reply) {
@@ -144,20 +121,11 @@ function stream(args){
   });
 };
 
-function lookup(name){
-  var scr_name = name.replace('@','');
-  T.get('users/lookup', { screen_name : scr_name}, function(err, reply) {
-    if (err && err.data) {
-      show_error(err);return false;
-    }
-    console.log(reply[0]);
-  });
-};
 
 function trends(id){
   var woeid = 1;
   if (id === '2')
-    woeid = 23424909;
+    woeid = 721943;
   T.get('trends/place', { id : woeid }, function(err, reply) {
     if (err){console.log(err); return false}
     console.log('trends for: '+reply[0].locations[0].name+'\r\n');
@@ -167,10 +135,6 @@ function trends(id){
   });
 };
 
-function dump(name){
-  var scr_name = name.replace('@','');
-  dump_recursive(scr_name,0,999999999999999999);
-};
 
 //  Credits: @JvdMeulen && @j3lte
 //  Credits: @J3lte
