@@ -1,0 +1,13 @@
+{
+  "name": "GalileoStreamer",
+  "description": "",
+  "author": "",
+  "dependencies": {
+    "twit": "1.x",
+    "express": "3.x"
+  },
+  "engine": {
+    "node": "0.10.5",
+    "npm": "1.2.x"
+  }
+}

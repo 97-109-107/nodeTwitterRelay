@@ -1,0 +1,7 @@
+var config = {}
+    config.access_token=         'xxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
+    config.access_token_secret =      'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
+    config.consumer_key =         'xxxxxxxxxxxxxxxxxxxxx';
+    config.consumer_secret =  'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
+
+module.exports = config;
