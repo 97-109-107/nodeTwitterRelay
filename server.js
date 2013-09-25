@@ -1,7 +1,11 @@
 var Twit    = require('twit'),
+    fs = require('fs'),
+    counter = 0,
+    nstore = require('nstore');
     express = require('express'),
     app     = express(),
     config = require('./config.js'),
+    dbPath = 'data/data.db',
     history = new Array(); 
     command       = process.argv[2],
     arguments     = process.argv.splice(3),
@@ -9,11 +13,16 @@ var Twit    = require('twit'),
     woeid         = 1,
     DST           = 1,
     amount        = 10,
+    db = '',
     T             = new Twit({
       consumer_key: config['consumer_key'],
       consumer_secret: config['consumer_secret'],
       access_token:config['access_token'],
       access_token_secret: config['access_token_secret']
+});
+
+db = nstore.new(dbPath, function () {
+  ;
 });
 
 app.configure(function () {
@@ -33,6 +42,9 @@ app.get('/', function(req, res){
 
 
 switch(command){
+  case "streams":
+    check_arguments('Enter one or more keywords to filter the stream',streams(arg));
+    break;
   case "stream":
     check_arguments('Enter one or more keywords to filter the stream',stream(arg));
     break;
@@ -66,7 +78,48 @@ Date.prototype.addHours= function(h){
 
 function addToStorage(item){
   history.push(item);
+  db.save(null, {tweet: item}, function (err, key) {
+    if (err) { throw err; }
+  });
 }
+
+function streams(args){
+  var interval = setInterval( function() {
+    if(typeof stream!='undefined'){
+      stream.stop();
+    }
+    console.log("now filtering for: "+args[counter]);
+    var stream = T.stream('statuses/filter', { track: args[counter] });
+
+    stream.on('tweet', function (tweet) {
+      processTweet(tweet);
+    }).on('limit', function (limitMessage) {
+      console.log(limitMessage);
+    }).on('delete', function (deleteMessage) {
+      console.log(deleteMessage);
+    }).on('disconnect', function (disconnectMessage) {
+      console.log(disconnectMessage);
+    });
+
+    counter++;
+    if (counter >= args.length) {
+      counter=0;
+    }
+  }, 2800);
+};
+
+function stream(args){
+  var stream1 = T.stream('statuses/filter', { track: args });
+  stream1.on('tweet', function (tweet) {
+    processTweet(tweet);
+  }).on('limit', function (limitMessage) {
+    console.log(limitMessage);
+  }).on('delete', function (deleteMessage) {
+    console.log(deleteMessage);
+  }).on('disconnect', function (disconnectMessage) {
+    console.log(disconnectMessage);
+  });
+};
 
 function processTweet(tweet){
   var type = (tweet.retweeted_status) ? 2 : 0;
@@ -108,20 +161,6 @@ function search(args){
   });
 };
 
-function stream(args){
-  var stream1 = T.stream('statuses/filter', { track: args });
-  stream1.on('tweet', function (tweet) {
-    processTweet(tweet);
-  }).on('limit', function (limitMessage) {
-    console.log(limitMessage);
-  }).on('delete', function (deleteMessage) {
-    console.log(deleteMessage);
-  }).on('disconnect', function (disconnectMessage) {
-    console.log(disconnectMessage);
-  });
-};
-
-
 function trends(id){
   var woeid = 1;
   if (id === '2')
@@ -134,7 +173,6 @@ function trends(id){
     };
   });
 };
-
 
 //  Credits: @JvdMeulen && @j3lte
 //  Credits: @J3lte

@@ -4,7 +4,8 @@
   "author": "",
   "dependencies": {
     "twit": "1.x",
-    "express": "3.x"
+    "express": "3.x",
+    "nstore": "0.5.2"
   },
   "engine": {
     "node": "0.10.5",

@@ -2,6 +2,7 @@
 .*.s[a-w][a-z]
 *.tmp
 *.un~
+data/*
 Session.vim
 .netrwhist
 config.js
