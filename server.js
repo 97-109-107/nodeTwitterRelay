@@ -6,8 +6,10 @@ var Twit    = require('twit'),
     express = require('express'),
     app     = express(),
     config = require('./config.js'),
+    categories = require('./categories.json'),
     dbPath = 'data/data.db',
-    history = new Array(); 
+    history = new Array(),
+    keywords = new Array(),
     command       = process.argv[2],
     arguments     = process.argv.splice(3),
     arg           = arguments,
@@ -37,14 +39,6 @@ db = nstore.new(dbPath, function () {
   app.get('/', function(req, res){
     res.send(history);
   });
-
-  // app.get('/metasample', function(req, res){
-  //   db.get("2va0g5d1", function (err, doc, key) {
-  //     if (err) { throw err; }
-  //     res.send(doc);
-  //   });
-  // });
-
   app.get('/query/:id', function(req, res){
     var hash = hashCode(req.params.id);
     var results = new Array();
@@ -63,7 +57,12 @@ db = nstore.new(dbPath, function () {
   });
 
   switch(command){
+    case "predefined":
+      loadKeywords();
+      streamsPredefined();
+      break;
     case "serve":
+      loadKeywords();
       break;
     case "streams":
       check_arguments('Enter one or more keywords to filter the stream',streams(arg));
@@ -108,6 +107,48 @@ db = nstore.new(dbPath, function () {
     });
   }
 
+  function streamsPredefined(){
+    var interval = setInterval( function() {
+      if(typeof stream!='undefined'){
+        stream.stop();
+      }
+
+      var name = keywords[counter]['name'];
+      var type = keywords[counter]['type'];
+      var query = keywords[counter]['query'];
+
+      console.log("now filtering for: "+name+" of type "+type);
+
+      switch(type){
+        case "locations":
+          var stream = T.stream('statuses/filter',  {locations:query} );
+          break;
+        case "keyword":
+          var stream = T.stream('statuses/filter',  {track:query} );
+          break;
+      }
+
+      stream.on('tweet', function (tweet) {
+        var type = (tweet.retweeted_status) ? 2 : 0;
+        if (!type){
+          type = (tweet.in_reply_to_user_id || tweet.in_reply_to_status_id) ? 1 : 0;
+        }
+        view_message({date: tweet.created_at, text: tweet.text, user: tweet.user.screen_name, is: type});
+        addToStorage(name, tweet.text);
+      }).on('limit', function (limitMessage) {
+        console.log(limitMessage);
+      }).on('delete', function (deleteMessage) {
+        console.log(deleteMessage);
+      }).on('disconnect', function (disconnectMessage) {
+        console.log(disconnectMessage);
+      });
+
+      counter++;
+      if (counter >= keywords.length) {
+        counter=0;
+      }
+    }, 5000);
+  };
   function streams(args){
     var interval = setInterval( function() {
       if(typeof stream!='undefined'){
@@ -175,7 +216,13 @@ db = nstore.new(dbPath, function () {
     console.log(errors.errors[0].message);
   }
 
-  hashCode = function(str){
+  function loadKeywords(){
+    categories['terms'].forEach(function(cat){
+      keywords.push(cat);
+    })
+  }
+
+  function hashCode(str){
     var hash = 0;
     if (str.length == 0) return hash;
     for (i = 0; i < str.length; i++) {
