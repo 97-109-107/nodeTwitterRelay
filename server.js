@@ -21,9 +21,6 @@ var Twit    = require('twit'),
       access_token_secret: config['access_token_secret']
 });
 
-db = nstore.new(dbPath, function () {
-  ;
-});
 
 app.configure(function () {
   app.use(express.logger('dev')); /* 'default', 'short', 'tiny', 'dev' */
@@ -66,7 +63,10 @@ function check_arguments(text,callback){
     console.log(text); 
     process.exit(1);
   } else {
-    callback;
+
+    db = nstore.new(dbPath, function () {
+      callback;
+    });
   };  
 }
 
@@ -76,9 +76,10 @@ Date.prototype.addHours= function(h){
   return copiedDate;
 }
 
-function addToStorage(item){
+function addToStorage(searchTerm, item){
   history.push(item);
-  db.save(null, {tweet: item}, function (err, key) {
+  var hash = hashCode(searchTerm);
+  db.save(null, {category: hash, tweet: item}, function (err, key) {
     if (err) { throw err; }
   });
 }
@@ -92,7 +93,11 @@ function streams(args){
     var stream = T.stream('statuses/filter', { track: args[counter] });
 
     stream.on('tweet', function (tweet) {
-      processTweet(tweet);
+      var type = (tweet.retweeted_status) ? 2 : 0;
+      if (!type)
+      type = (tweet.in_reply_to_user_id || tweet.in_reply_to_status_id) ? 1 : 0;
+      view_message({date: tweet.created_at, text: tweet.text, lang: tweet.user.lang, user: tweet.user.screen_name, is: type});
+      addToStorage(args[counter], tweet.text);
     }).on('limit', function (limitMessage) {
       console.log(limitMessage);
     }).on('delete', function (deleteMessage) {
@@ -107,31 +112,6 @@ function streams(args){
     }
   }, 2800);
 };
-
-function stream(args){
-  var stream1 = T.stream('statuses/filter', { track: args });
-  stream1.on('tweet', function (tweet) {
-    processTweet(tweet);
-  }).on('limit', function (limitMessage) {
-    console.log(limitMessage);
-  }).on('delete', function (deleteMessage) {
-    console.log(deleteMessage);
-  }).on('disconnect', function (disconnectMessage) {
-    console.log(disconnectMessage);
-  });
-};
-
-function processTweet(tweet){
-  var type = (tweet.retweeted_status) ? 2 : 0;
-  if (!type)
-    type = (tweet.in_reply_to_user_id || tweet.in_reply_to_status_id) ? 1 : 0;
-  view_message( { date: tweet.created_at, 
-    text: tweet.text, 
-    lang: tweet.user.lang,
-    user: tweet.user.screen_name,
-    is:   type});
-  addToStorage(tweet.text);
-}
 
 function view_message(body){
   var msg     = body.text,
@@ -173,6 +153,17 @@ function trends(id){
     };
   });
 };
+
+hashCode = function(str){
+  var hash = 0;
+  if (str.length == 0) return hash;
+  for (i = 0; i < str.length; i++) {
+    char = str.charCodeAt(i);
+    hash = ((hash<<5)-hash)+char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return hash;
+}
 
 //  Credits: @JvdMeulen && @j3lte
 //  Credits: @J3lte
