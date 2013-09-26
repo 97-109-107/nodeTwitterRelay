@@ -40,18 +40,16 @@ db = nstore.new(dbPath, function () {
     res.send(history);
   });
   app.get('/query/:id', function(req, res){
-    var hash = hashCode(req.params.id);
     var results = new Array();
-    db.find({category: hash}, function (err, results) {
+    db.find({category: req.params.id}, function (err, results) {
       res.send(results);
     });
   });
 
   app.get('/query/:id/last/:hours', function(req, res){
-    var hash = hashCode(req.params.id);
     var hours = Date.now() - req.params.hours * 3600000;
     var results = new Array();
-    db.find({category: hash, "created >": hours }, function (err, results) {
+    db.find({category: req.params.id, "created >": hours }, function (err, results) {
       res.send(results);
     });
   });
@@ -99,10 +97,9 @@ db = nstore.new(dbPath, function () {
     return copiedDate;
   }
 
-  function addToStorage(searchTerm, item){
+  function addToStorage(name, item){
     history.push(item);
-    var hash = hashCode(searchTerm);
-    db.save(null, {category: hash, tweet: item, created: Date.now()}, function (err, key) {
+    db.save(null, {category: name, tweet: item, created: Date.now()}, function (err, key) {
       if (err) { throw err; }
     });
   }
