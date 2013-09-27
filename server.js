@@ -37,12 +37,25 @@ db = nstore.new(dbPath, function () {
     res.send(history);
   });
 
+  app.get('/wipe', function(req, res){
+    fs.unlink(dbPath, function (err) {
+      if (err) throw err;
+      console.log('successfully deleted',dbPath);
+    });
+  });
+
+  app.get('/all', function(req, res){
+    db.all(function (err, results) {
+      res.send(results);
+    })
+  });
+
   app.get('/status', function(req, res){
     var results = new Array();
     db.all(function (err, results) {
       var r = new Array();
       for(var key in results){
-        results[key].category!=null ? r.push(results[key].category) : null;
+        results[key].query!=null ? r.push(results[key].query+' ['+results[key].type+'] ') : null;
       }
       r = r.getUnique();
       res.send(r);
@@ -51,7 +64,7 @@ db = nstore.new(dbPath, function () {
 
   app.get('/query/:id', function(req, res){
     var results = new Array();
-    db.find({category: req.params.id}, function (err, results) {
+    db.find({query: req.params.id}, function (err, results) {
       res.send(results);
     });
   });
@@ -59,8 +72,17 @@ db = nstore.new(dbPath, function () {
   app.get('/query/:id/last/:minutes', function(req, res){
     var minutes = Date.now() - req.params.minutes * 60000;
     var results = new Array();
-    db.find({category: req.params.id, "created >": minutes }, function (err, results) {
+    db.find({query: req.params.id, "created >": minutes }, function (err, results) {
       res.json(results);
+    });
+  });
+
+  //TODO simplified for arduino
+  app.get('/squery/:id/last/:minutes', function(req, res){
+    var minutes = Date.now() - req.params.minutes * 60000;
+    var results = new Array();
+    db.find({query: req.params.id, "created >": minutes }, function (err, results) {
+      res.json(results.length);
     });
   });
 
@@ -68,6 +90,9 @@ db = nstore.new(dbPath, function () {
     case "predefined":
       loadKeywords();
       streamsPredefined();
+      var interval = setInterval( function() {
+        streamsPredefined();
+      }, 9000);
       break;
     case "serve":
       loadKeywords();
@@ -93,25 +118,24 @@ db = nstore.new(dbPath, function () {
     return copiedDate;
   }
 
-  function addToStorage(name, item, type){
+  function addToStorage(q, item, qtype){
     history.push(item);
-    db.save(null, {category: type+':'+name, tweet: item, created: Date.now()}, function (err, key) {
+    db.save(null, {type: qtype, query: q, tweet: item, created: Date.now()}, function (err, key) {
       if (err) { throw err; }
     });
   }
 
   function streamsPredefined(){
-    var interval = setInterval( function() {
       if(typeof stream!='undefined'){
         stream.stop();
       }
 
-      var name = keywords[counter]['name'];
-      var type = keywords[counter]['type'];
-      var query = keywords[counter]['query'];
+      var thisKeyword = keywords[counter];
+      var name = thisKeyword['name'];
+      var type = thisKeyword['type'];
+      var query = thisKeyword['query'];
 
-      console.log("now filtering for: "+name+" of type "+type);
-
+      console.log("now filtering for: "+thisKeyword['name']+" of type "+thisKeyword['type']);
       switch(type){
         case "locations":
           var stream = T.stream('statuses/filter',  {locations:query} );
@@ -123,7 +147,7 @@ db = nstore.new(dbPath, function () {
 
       stream.on('tweet', function (tweet) {
         view_message(tweet);
-        addToStorage(name, tweet.text, keywords[counter]['type']);
+        addToStorage(name, tweet.text, type);
       }).on('limit', function (limitMessage) {
         console.log(limitMessage);
       }).on('delete', function (deleteMessage) {
@@ -136,7 +160,6 @@ db = nstore.new(dbPath, function () {
       if (counter >= keywords.length) {
         counter=0;
       }
-    }, 9000);
   };
 
   function search(args){
