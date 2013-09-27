@@ -37,13 +37,6 @@ db = nstore.new(dbPath, function () {
     res.send(history);
   });
 
-  app.get('/wipe', function(req, res){
-    fs.unlink(dbPath, function (err) {
-      if (err) throw err;
-      console.log('successfully deleted',dbPath);
-    });
-  });
-
   app.get('/all', function(req, res){
     db.all(function (err, results) {
       res.send(results);
@@ -96,6 +89,12 @@ db = nstore.new(dbPath, function () {
       break;
     case "serve":
       loadKeywords();
+      break;
+    case "wipe":
+      fs.unlink(dbPath, function (err) {
+        if (err) throw err;
+        console.log('successfully deleted',dbPath);
+      });
       break;
     default:
       console.log('<arguments> = additional keywords/arguments');
