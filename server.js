@@ -13,9 +13,6 @@ var Twit    = require('twit'),
     command       = process.argv[2],
     arguments     = process.argv.splice(3),
     arg           = arguments,
-    woeid         = 1,
-    DST           = 1,
-    amount        = 20,
     db = '',
     T             = new Twit({
       consumer_key: config['consumer_key'],
@@ -39,6 +36,19 @@ db = nstore.new(dbPath, function () {
   app.get('/', function(req, res){
     res.send(history);
   });
+
+  app.get('/status', function(req, res){
+    var results = new Array();
+    db.all(function (err, results) {
+      var r = new Array();
+      for(var key in results){
+        results[key].category!=null ? r.push(results[key].category) : null;
+      }
+      r = r.getUnique();
+      res.send(r);
+    });
+  });
+
   app.get('/query/:id', function(req, res){
     var results = new Array();
     db.find({category: req.params.id}, function (err, results) {
@@ -62,21 +72,7 @@ db = nstore.new(dbPath, function () {
     case "serve":
       loadKeywords();
       break;
-    case "streams":
-      check_arguments('Enter one or more keywords to filter the stream',streams(arg));
-      break;
-    case "stream":
-      check_arguments('Enter one or more keywords to filter the stream',stream(arg));
-      break;
-    case "search":
-      check_arguments('Enter one or more keywords to search for',search(arg));
-      break;
-    case "trends":
-      check_arguments('Enter a region, 1 is worldwide, 2 is Roma',trends(arg[0]));
-      break;
     default:
-      console.log('Usage: node app.js <command> <arguments>');
-      console.log('<command> = search / stream / lookup / trends / dump'); 
       console.log('<arguments> = additional keywords/arguments');
       process.exit(1);
   }
@@ -97,9 +93,9 @@ db = nstore.new(dbPath, function () {
     return copiedDate;
   }
 
-  function addToStorage(name, item){
+  function addToStorage(name, item, type){
     history.push(item);
-    db.save(null, {category: name, tweet: item, created: Date.now()}, function (err, key) {
+    db.save(null, {category: type+':'+name, tweet: item, created: Date.now()}, function (err, key) {
       if (err) { throw err; }
     });
   }
@@ -126,12 +122,8 @@ db = nstore.new(dbPath, function () {
       }
 
       stream.on('tweet', function (tweet) {
-        var type = (tweet.retweeted_status) ? 2 : 0;
-        if (!type){
-          type = (tweet.in_reply_to_user_id || tweet.in_reply_to_status_id) ? 1 : 0;
-        }
-        view_message({date: tweet.created_at, text: tweet.text, user: tweet.user.screen_name, is: type});
-        addToStorage(name, tweet.text);
+        view_message(tweet);
+        addToStorage(name, tweet.text, keywords[counter]['type']);
       }).on('limit', function (limitMessage) {
         console.log(limitMessage);
       }).on('delete', function (deleteMessage) {
@@ -145,33 +137,6 @@ db = nstore.new(dbPath, function () {
         counter=0;
       }
     }, 9000);
-  };
-  function streams(args){
-    var interval = setInterval( function() {
-      if(typeof stream!='undefined'){
-        stream.stop();
-      }
-      console.log("now filtering for: "+args[counter]);
-      var stream = T.stream('statuses/filter', { track: args[counter] });
-      stream.on('tweet', function (tweet) {
-        var type = (tweet.retweeted_status) ? 2 : 0;
-        if (!type)
-        type = (tweet.in_reply_to_user_id || tweet.in_reply_to_status_id) ? 1 : 0;
-      view_message({date: tweet.created_at, text: tweet.text, lang: tweet.user.lang, user: tweet.user.screen_name, is: type});
-      addToStorage(args[counter], tweet.text);
-      }).on('limit', function (limitMessage) {
-        console.log(limitMessage);
-      }).on('delete', function (deleteMessage) {
-        console.log(deleteMessage);
-      }).on('disconnect', function (disconnectMessage) {
-        console.log(disconnectMessage);
-      });
-
-      counter++;
-      if (counter >= args.length) {
-        counter=0;
-      }
-    }, 12000);
   };
 
   function search(args){
@@ -190,7 +155,7 @@ db = nstore.new(dbPath, function () {
     if (id === '2')
       woeid = 721943;
     T.get('trends/place', { id : woeid }, function(err, reply) {
-      if (err){console.log(err); return false}
+     if (err){console.log(err); return false}
       console.log('trends for: '+reply[0].locations[0].name+'\r\n');
       for (var i=0; i < reply[0].trends.length; i++) {
         console.log('--> '+ reply[0].trends[i].name);
@@ -198,14 +163,7 @@ db = nstore.new(dbPath, function () {
     });
   };
   function view_message(body){
-    var msg     = body.text,
-        time    = new Date(body.date).addHours(DST).toISOString().replace(/T/, ' ').replace(/\..+/, ''),
-        i=0;
-    for(var word in arg){
-      r = new RegExp('(' + arg[word].replace(/[A-z]+:(.*)/, '$1').split(' ').join('|') + ')','ig');
-      i++;
-    }
-    console.log([time,  body.lang, body.user, ['--','RP','RT'][body.is], msg]); 
+    console.log(body); 
   }
 
   function show_error(err){
@@ -220,5 +178,17 @@ db = nstore.new(dbPath, function () {
   }
 
 });
+
+Array.prototype.getUnique = function(){
+   var u = {}, a = [];
+   for(var i = 0, l = this.length; i < l; ++i){
+      if(u.hasOwnProperty(this[i])) {
+         continue;
+      }
+      a.push(this[i]);
+      u[this[i]] = 1;
+   }
+   return a;
+}
 //  Credits: @JvdMeulen && @j3lte
 //  Credits: @J3lte
