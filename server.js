@@ -34,7 +34,15 @@ db = nstore.new(dbPath, function () {
   app.use('/', express.static(__dirname + '/'));
 
   app.get('/', function(req, res){
-    res.send(history);
+    res.charset = 'utf-8';
+    res.send("api paths ex.:<br>/current<br>/all<br> /status<br> /query/:id<br> /query/:id/last/:minutes<br> /squery/:id/last/:minutes<br>");
+    res.send();
+  });
+
+  app.get('/current', function(req, res){
+    db.all(function (err, results) {
+      res.send(history);
+    })
   });
 
   app.get('/all', function(req, res){
@@ -97,7 +105,8 @@ db = nstore.new(dbPath, function () {
       });
       break;
     default:
-      console.log('<arguments> = additional keywords/arguments');
+      console.log('possible commads:');
+      console.log('predefined, serve, wipe');
       process.exit(1);
   }
 
