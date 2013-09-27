@@ -81,9 +81,12 @@ db = nstore.new(dbPath, function () {
   //TODO simplified for arduino
   app.get('/squery/:id/last/:minutes', function(req, res){
     var minutes = Date.now() - req.params.minutes * 60000;
-    var results = new Array();
     db.find({query: req.params.id, "created >": minutes }, function (err, results) {
-      res.json(results.length);
+      var i = 0;
+      for(var key in results){
+        i++;
+      }
+      res.send(i.toString());
     });
   });
 
