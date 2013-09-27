@@ -1,6 +1,6 @@
 var Twit    = require('twit'),
     fs = require('fs'),
-    counter = 0,
+    counter = 1,
     nstore = require('nstore');
     nstore = nstore.extend(require('nstore/query')());
     express = require('express'),
@@ -46,11 +46,11 @@ db = nstore.new(dbPath, function () {
     });
   });
 
-  app.get('/query/:id/last/:hours', function(req, res){
-    var hours = Date.now() - req.params.hours * 3600000;
+  app.get('/query/:id/last/:minutes', function(req, res){
+    var minutes = Date.now() - req.params.minutes * 60000;
     var results = new Array();
-    db.find({category: req.params.id, "created >": hours }, function (err, results) {
-      res.send(results);
+    db.find({category: req.params.id, "created >": minutes }, function (err, results) {
+      res.json(results);
     });
   });
 
@@ -144,7 +144,7 @@ db = nstore.new(dbPath, function () {
       if (counter >= keywords.length) {
         counter=0;
       }
-    }, 5000);
+    }, 9000);
   };
   function streams(args){
     var interval = setInterval( function() {
